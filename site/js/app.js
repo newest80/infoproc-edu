@@ -216,7 +216,7 @@ function viewTyping(setId) {
   const records = store.get('typing', {});
   return [
     h('h1', null, '타자 연습'),
-    h('p', { class: 'muted' }, '문장을 그대로 따라 치세요. 다 쳤으면 Enter를 눌러 다음 문장으로 넘어갑니다.'),
+    h('p', { class: 'muted' }, '문장을 그대로 따라 치세요. 다 쳤으면 스페이스바나 Enter를 눌러 다음 문장으로 넘어갑니다.'),
     h('div', { class: 'grid' }, DB.typing.map((s) => {
       const r = records[s.id];
       return h('section', { class: 'card' },
@@ -303,7 +303,9 @@ function typingSession(set) {
     paint();
   });
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); nextLine(); }
+    if (e.isComposing) return;
+    const lineDone = input.value.length >= set.items[S.idx].length;
+    if (e.key === 'Enter' || (e.key === ' ' && lineDone)) { e.preventDefault(); nextLine(); }
   });
   input.addEventListener('paste', (e) => e.preventDefault());
 
@@ -312,7 +314,7 @@ function typingSession(set) {
     h('h1', null, set.name),
     counter,
     h('div', { class: 'card' }, target, input, stats),
-    h('p', { class: 'muted small', id: 'typing-help' }, '문장을 끝까지 친 뒤 Enter를 누르면 다음 문장으로 넘어갑니다. 붙여넣기는 막혀 있습니다.'),
+    h('p', { class: 'muted small', id: 'typing-help' }, '문장을 끝까지 친 뒤 스페이스바나 Enter를 누르면 다음 문장으로 넘어갑니다. 붙여넣기는 막혀 있습니다.'),
   );
   paint();
   ticker = setInterval(() => { if (S.startedAt) paint(); }, 1000);

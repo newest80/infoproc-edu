@@ -85,6 +85,13 @@ async function finishPractice(page) {
     const firstLine = await page.textContent('.typing-target');
     await page.locator('.typing input').fill(firstLine.slice(0, 5) + 'X');
     check((await page.locator('.typing-target .bad').count()) === 1, '타자: 틀린 글자 표시');
+    await page.locator('.typing input').fill(firstLine.slice(0, 6));
+    await page.locator('.typing input').press('Space');
+    check((await page.inputValue('.typing input')) === firstLine.slice(0, 6) + ' ', '타자: 문장 중간의 스페이스는 띄어쓰기로 입력');
+    await page.locator('.typing input').fill(firstLine);
+    await page.locator('.typing input').press('Space');
+    check((await page.textContent('.typing-target')) !== firstLine && (await page.inputValue('.typing input')) === '',
+      '타자: 문장 끝까지 친 뒤 스페이스바 → 다음 문장');
     for (let i = 0; i < 20; i++) {
       if (await page.locator('.typing .result').count()) break;
       const line = await page.textContent('.typing-target');
