@@ -39,7 +39,7 @@ function fill(el, ...kids) {
   return el;
 }
 
-const DB = { exam: null, subjects: [], questions: [], byId: new Map(), notes: {} };
+const DB = { exam: null, subjects: [], questions: [], byId: new Map(), notes: {}, typing: [], practical: { categories: [], questions: [] } };
 let cleanup = null; // 현재 화면이 등록한 정리 함수 (타이머·키보드 핸들러 해제)
 
 async function loadData() {
@@ -64,6 +64,9 @@ async function loadData() {
     }
     DB.notes[sid] = n.sections;
   });
+  const [typing, practical] = await Promise.all([getJSON('data/typing.json'), getJSON('data/practical.json')]);
+  DB.typing = typing.sets;
+  DB.practical = practical;
 }
 
 const subjectOf = (id) => DB.subjects.find((s) => s.id === id);
@@ -107,12 +110,12 @@ function recordResults(session) {
   store.set('history', history.slice(0, 50));
 }
 
-/* ---------- 화면: 홈 ---------- */
-function viewHome() {
+/* ---------- 화면: 필기 연습 ---------- */
+function viewWritten() {
   const w = DB.exam.written;
   const wrongCount = store.get('wrong', []).length;
   return [
-    h('h1', null, DB.exam.name + ' 필기 대비'),
+    h('h1', null, '필기 연습'),
     h('p', { class: 'muted' }, '개념을 정리하고, 과목별로 문제를 풀고, 실전처럼 모의고사를 보세요.'),
     h('dl', { class: 'facts' },
       h('div', null, h('dt', null, '문항'), h('dd', null, w.questions + '문항 (과목당 ' + w.perSubject + ')')),
@@ -143,13 +146,322 @@ function viewHome() {
   ];
 }
 
+/* ---------- 화면: 홈 (필기 · 타자 · 실기 허브) ---------- */
+function viewHome() {
+  const wrongCount = store.get('wrong', []).length;
+  const typingBest = Object.values(store.get('typing', {})).reduce((m, r) => Math.max(m, r.best || 0), 0);
+  const pstats = Object.values(store.get('pstats', {}));
+  const pOk = pstats.reduce((a, [ok]) => a + ok, 0);
+  const pAll = pstats.reduce((a, [ok, ng]) => a + ok + ng, 0);
+  const cards = [
+    {
+      id: 'written', tag: '객관식', title: '필기 연습', href: '#/written',
+      desc: '과목별 개념 노트와 4지선다 문제, 실전 모의고사, 오답노트',
+      stat: '문제 ' + DB.questions.length + '개 · 오답 ' + wrongCount + '개',
+    },
+    {
+      id: 'typing', tag: '암기', title: '타자 연습', href: '#/typing',
+      desc: '핵심 개념 문장과 SQL을 따라 치며 손으로 외우기',
+      stat: '세트 ' + DB.typing.length + '개' + (typingBest ? ' · 최고 ' + typingBest + '타' : ''),
+    },
+    {
+      id: 'practical', tag: '필답형', title: '실기 연습', href: '#/practical',
+      desc: '코드 결과, SQL 작성, 용어 쓰기를 직접 입력하고 채점',
+      stat: '문제 ' + DB.practical.questions.length + '개' + (pAll ? ' · 정답률 ' + pct(pOk, pAll) + '%' : ''),
+    },
+  ];
+  return [
+    h('h1', null, DB.exam.name + ' 학습'),
+    h('p', { class: 'muted' }, '필기는 문제로, 개념은 손으로, 실기는 직접 써 보며 준비하세요.'),
+    h('div', { class: 'hub' }, cards.map((c) => h('a', { class: 'card hub-card', href: c.href, 'data-hub': c.id },
+      h('span', { class: 'tag' }, c.tag),
+      h('h2', null, c.title),
+      h('p', { class: 'muted' }, c.desc),
+      h('p', { class: 'small' }, c.stat),
+      h('span', { class: 'hub-go', 'aria-hidden': 'true' }, '시작하기 →'),
+    ))),
+    h('h2', null, '시험 안내'),
+    h('dl', { class: 'facts' },
+      h('div', null, h('dt', null, '필기'), h('dd', null, DB.exam.written.questions + '문항 · ' + DB.exam.written.minutes + '분')),
+      h('div', null, h('dt', null, '필기 합격'), h('dd', null, '과목 ' + DB.exam.written.subjectCutoff + '점↑ · 평균 ' + DB.exam.written.passAverage + '점↑')),
+      h('div', null, h('dt', null, '실기'), h('dd', null, DB.exam.practical.subject + ' (' + DB.exam.practical.format + ')')),
+      h('div', null, h('dt', null, '실기 합격'), h('dd', null, DB.exam.practical.passScore + '점 이상')),
+    ),
+    !DB.exam.verified && h('p', { class: 'notice' }, '시험 정보는 아직 최신 출제기준과 대조하지 않았습니다. 응시 전 Q-Net 공고를 꼭 확인하세요.'),
+  ];
+}
+
+/* ---------- 타자 연습 ---------- */
+// 두벌식 기준 타수: 쌍자음·ㅒ·ㅖ는 Shift 조합 1타, 겹모음·겹받침은 2타
+const COMPOUND_VOWEL = new Set([9, 10, 11, 14, 15, 16, 19]); // ㅘ ㅙ ㅚ ㅝ ㅞ ㅟ ㅢ
+const COMPOUND_FINAL = new Set([3, 5, 6, 9, 10, 11, 12, 13, 14, 15, 18]); // ㄳ ㄵ ㄶ ㄺ ㄻ ㄼ ㄽ ㄾ ㄿ ㅀ ㅄ
+function keystrokes(text) {
+  let n = 0;
+  for (const ch of text) {
+    const code = ch.charCodeAt(0) - 0xac00;
+    if (code >= 0 && code < 11172) {
+      const jung = Math.floor((code % 588) / 28);
+      const jong = code % 28;
+      n += 1 + (COMPOUND_VOWEL.has(jung) ? 2 : 1) + (jong ? (COMPOUND_FINAL.has(jong) ? 2 : 1) : 0);
+    } else n += 1;
+  }
+  return n;
+}
+
+function viewTyping(setId) {
+  if (setId) {
+    const set = DB.typing.find((s) => s.id === setId);
+    return set ? typingSession(set) : viewNotFound();
+  }
+  const records = store.get('typing', {});
+  return [
+    h('h1', null, '타자 연습'),
+    h('p', { class: 'muted' }, '문장을 그대로 따라 치세요. 다 쳤으면 Enter를 눌러 다음 문장으로 넘어갑니다.'),
+    h('div', { class: 'grid' }, DB.typing.map((s) => {
+      const r = records[s.id];
+      return h('section', { class: 'card' },
+        h('h3', null, s.name),
+        h('p', { class: 'muted small' }, s.description),
+        h('p', { class: 'small' }, s.items.length + '문장' + (r ? ' · 최고 ' + r.best + '타 · 정확도 ' + r.acc + '%' : '')),
+        h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#/typing/' + s.id, 'data-set': s.id }, '연습하기')),
+      );
+    })),
+  ];
+}
+
+function typingSession(set) {
+  const S = { idx: 0, startedAt: null, composing: false, done: [], totalKs: 0, totalMs: 0 };
+  const root = h('div', { class: 'typing' });
+  const target = h('p', { class: 'typing-target', id: 'typing-target', lang: 'ko' });
+  const input = h('input', {
+    class: 'field', type: 'text', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false',
+    'aria-labelledby': 'typing-target', 'aria-describedby': 'typing-help',
+  });
+  const stats = h('p', { class: 'typing-stats', 'aria-live': 'off' });
+  const counter = h('p', { class: 'muted small' });
+  let ticker = null;
+
+  function paint() {
+    const text = set.items[S.idx];
+    const typed = input.value;
+    const pendingIdx = S.composing ? typed.length - 1 : -1;
+    fill(target, [...text].map((ch, i) => {
+      let cls = 'ch';
+      if (i < typed.length) cls += i === pendingIdx ? ' pending' : (typed[i] === ch ? ' ok' : ' bad');
+      else if (i === typed.length) cls += ' cur';
+      return h('span', { class: cls }, ch);
+    }));
+    const ms = S.startedAt ? Date.now() - S.startedAt : 0;
+    const speed = ms > 1000 ? Math.round(keystrokes(typed) / (ms / 60000)) : 0;
+    const correct = [...typed].filter((c, i) => c === text[i]).length;
+    stats.textContent = '타수 ' + speed + '타/분 · 정확도 ' + (typed.length ? pct(correct, typed.length) : 100) + '%';
+    counter.textContent = (S.idx + 1) + ' / ' + set.items.length + ' 문장';
+  }
+
+  function nextLine() {
+    const text = set.items[S.idx];
+    const typed = input.value;
+    if (typed.length < text.length) return;
+    const ms = Math.max(1, Date.now() - (S.startedAt || Date.now()));
+    const correct = [...text].filter((c, i) => typed[i] === c).length;
+    S.done.push({ acc: pct(correct, text.length) });
+    S.totalKs += keystrokes(typed.slice(0, text.length));
+    S.totalMs += ms;
+    S.startedAt = null;
+    if (S.idx === set.items.length - 1) return finish();
+    S.idx += 1;
+    input.value = '';
+    paint();
+  }
+
+  function finish() {
+    if (ticker) clearInterval(ticker);
+    const speed = Math.round(S.totalKs / (S.totalMs / 60000));
+    const acc = Math.round(S.done.reduce((a, d) => a + d.acc, 0) / S.done.length);
+    const records = store.get('typing', {});
+    const prev = records[set.id];
+    const isBest = !prev || speed > prev.best;
+    records[set.id] = { best: isBest ? speed : prev.best, acc: isBest ? acc : prev.acc, at: Date.now() };
+    store.set('typing', records);
+    fill(root,
+      h('h1', null, set.name + ' 완료'),
+      h('div', { class: 'card result' },
+        h('p', { class: 'big' }, speed + '타/분'),
+        h('p', null, '평균 정확도 ' + acc + '%' + (isBest ? ' · 최고 기록!' : ' · 최고 ' + prev.best + '타')),
+      ),
+      h('div', { class: 'actions' },
+        h('button', { type: 'button', class: 'btn primary', onclick: () => router() }, '다시 하기'),
+        h('a', { class: 'btn', href: '#/typing' }, '다른 세트'),
+      ),
+    );
+  }
+
+  input.addEventListener('compositionstart', () => { S.composing = true; });
+  input.addEventListener('compositionend', () => { S.composing = false; paint(); });
+  input.addEventListener('input', () => {
+    if (!S.startedAt && input.value) S.startedAt = Date.now();
+    paint();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); nextLine(); }
+  });
+  input.addEventListener('paste', (e) => e.preventDefault());
+
+  fill(root,
+    h('p', null, h('a', { href: '#/typing' }, '← 타자 연습')),
+    h('h1', null, set.name),
+    counter,
+    h('div', { class: 'card' }, target, input, stats),
+    h('p', { class: 'muted small', id: 'typing-help' }, '문장을 끝까지 친 뒤 Enter를 누르면 다음 문장으로 넘어갑니다. 붙여넣기는 막혀 있습니다.'),
+  );
+  paint();
+  ticker = setInterval(() => { if (S.startedAt) paint(); }, 1000);
+  cleanup = () => clearInterval(ticker);
+  setTimeout(() => input.focus(), 0);
+  return root;
+}
+
+/* ---------- 실기 연습 ---------- */
+function normalizeAnswer(s, caseSensitive) {
+  let t = String(s).normalize('NFC').replace(/["“”‘’`]/g, "'").replace(/\s+/g, '').replace(/;+$/, '');
+  return caseSensitive ? t : t.toLowerCase();
+}
+function isCorrectPractical(q, input) {
+  const raw = String(input).trim();
+  if (!raw) return false;
+  const variants = [raw, raw.replace(/\([^)]*\)/g, ''), ...[...raw.matchAll(/\(([^)]*)\)/g)].map((m) => m[1])];
+  const accepted = q.answers.map((a) => normalizeAnswer(a, q.caseSensitive));
+  return variants.some((v) => accepted.includes(normalizeAnswer(v, q.caseSensitive)));
+}
+
+function viewPractical(cat) {
+  const P = DB.practical;
+  if (cat) {
+    const pool = cat === 'all' ? P.questions : P.questions.filter((q) => q.category === cat);
+    const c = P.categories.find((x) => x.id === cat);
+    if (!pool.length) return viewNotFound();
+    return practicalSession({ title: '실기 · ' + (c ? c.name : '전체 랜덤'), qs: shuffle(pool).slice(0, 10) });
+  }
+  const pstats = store.get('pstats', {});
+  return [
+    h('h1', null, '실기 연습'),
+    h('p', { class: 'muted' }, '필답형처럼 답을 직접 입력합니다. 띄어쓰기, 대소문자(코드 출력 제외), 끝의 세미콜론은 채점에 영향을 주지 않습니다.'),
+    h('div', { class: 'grid' }, P.categories.map((c) => {
+      const qs = P.questions.filter((q) => q.category === c.id);
+      let ok = 0, all = 0;
+      qs.forEach((q) => { const st = pstats[q.id]; if (st) { ok += st[0]; all += st[0] + st[1]; } });
+      return h('section', { class: 'card' },
+        h('h3', null, c.name),
+        h('p', { class: 'muted small' }, c.description),
+        h('p', { class: 'small' }, '문제 ' + qs.length + '개' + (all ? ' · 정답률 ' + pct(ok, all) + '%' : '')),
+        h('div', { class: 'actions' }, h('a', { class: 'btn primary', href: '#/practical/' + c.id, 'data-cat': c.id }, '풀기')),
+      );
+    })),
+    h('div', { class: 'actions', style: 'margin-top:12px' }, h('a', { class: 'btn', href: '#/practical/all' }, '전체 랜덤 10문제')),
+  ];
+}
+
+function practicalSession({ title, qs }) {
+  const S = { idx: 0, results: Array(qs.length).fill(null), inputs: Array(qs.length).fill('') };
+  const root = h('div', { class: 'practical' });
+
+  function record(i, ok) {
+    const pstats = store.get('pstats', {});
+    const st = pstats[qs[i].id] || [0, 0];
+    if (S.results[i] != null) st[S.results[i] ? 0 : 1] -= 1; // 직접 정답 처리 시 이전 기록 정정
+    st[ok ? 0 : 1] += 1;
+    pstats[qs[i].id] = st;
+    store.set('pstats', pstats);
+    S.results[i] = ok;
+  }
+
+  function finish() {
+    const ok = S.results.filter(Boolean).length;
+    const score = pct(ok, qs.length);
+    const history = store.get('history', []);
+    history.unshift({ at: Date.now(), title, mode: 'practical', correct: ok, total: qs.length });
+    store.set('history', history.slice(0, 50));
+    fill(root,
+      h('h1', null, title + ' 결과'),
+      h('div', { class: 'card result' },
+        h('p', { class: 'big' }, score + '점'),
+        h('p', { class: score >= DB.exam.practical.passScore ? 'pass' : 'fail' },
+          ok + ' / ' + qs.length + ' 정답 · 합격선 ' + DB.exam.practical.passScore + '점'),
+      ),
+      qs.map((q, i) => h('div', { class: 'card explain ' + (S.results[i] ? 'ok' : 'bad') },
+        h('p', { class: 'qtext' }, (i + 1) + '. ' + q.question),
+        h('p', { class: 'small' }, '내 답: ' + (S.inputs[i] || '(미입력)')),
+        h('p', { class: 'small' }, h('strong', null, '모범 답안: ' + q.answers[0])),
+      )),
+      h('div', { class: 'actions' },
+        h('button', { type: 'button', class: 'btn primary', onclick: () => router() }, '다시 풀기'),
+        h('a', { class: 'btn', href: '#/practical' }, '실기 연습 홈'),
+      ),
+    );
+    window.scrollTo(0, 0);
+  }
+
+  function render() {
+    const q = qs[S.idx];
+    const checked = S.results[S.idx] != null;
+    const multiline = q.category === 'sql';
+    const field = h(multiline ? 'textarea' : 'input', {
+      class: 'field' + (multiline ? ' code-field' : ''), id: 'p-answer',
+      rows: multiline ? '3' : null, type: multiline ? null : 'text',
+      autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false',
+      disabled: checked, 'aria-describedby': 'p-help',
+    });
+    field.value = S.inputs[S.idx];
+    const check = () => {
+      if (checked) return;
+      S.inputs[S.idx] = field.value;
+      record(S.idx, isCorrectPractical(q, field.value));
+      render();
+    };
+    field.addEventListener('keydown', (e) => {
+      if (e.isComposing || e.key !== 'Enter') return;
+      if (!multiline || e.ctrlKey || e.metaKey) { e.preventDefault(); check(); }
+    });
+    const ok = S.results[S.idx];
+    const isLast = S.idx === qs.length - 1;
+    fill(root,
+      h('div', { class: 'quiz-head' }, h('h1', null, title)),
+      h('p', { class: 'muted small' }, (S.idx + 1) + ' / ' + qs.length + ' · ' + DB.practical.categories.find((c) => c.id === q.category).name),
+      h('div', { class: 'progress', 'aria-hidden': 'true' }, h('div', { style: 'width:' + pct(S.idx + (checked ? 1 : 0), qs.length) + '%' })),
+      h('div', { class: 'card' },
+        h('label', { class: 'qtext', for: 'p-answer' }, (S.idx + 1) + '. ' + q.question),
+        q.code && h('pre', { class: 'code', tabindex: '0', 'aria-label': '문제 코드' }, h('code', null, q.code)),
+        field,
+        h('p', { class: 'muted small', id: 'p-help' }, multiline ? 'Ctrl(⌘)+Enter로 채점' : 'Enter로 채점'),
+      ),
+      checked && h('div', { class: 'card explain ' + (ok ? 'ok' : 'bad'), role: 'status' },
+        h('h3', null, ok ? '정답입니다' : '모범 답안과 다릅니다'),
+        h('p', null, h('strong', null, '모범 답안: '), q.answers.join('  /  ')),
+        h('p', null, q.explanation),
+        !ok && S.inputs[S.idx].trim() && h('button', { type: 'button', class: 'btn', onclick: () => { record(S.idx, true); render(); } },
+          '같은 뜻으로 맞게 썼어요 (정답 처리)'),
+      ),
+      h('div', { class: 'actions' },
+        !checked && h('button', { type: 'button', class: 'btn primary', onclick: check }, '채점하기'),
+        checked && h('button', { type: 'button', class: 'btn primary', onclick: () => { if (isLast) finish(); else { S.idx += 1; render(); } } },
+          isLast ? '결과 보기' : '다음'),
+        h('a', { class: 'btn', href: '#/practical' }, '그만두기'),
+      ),
+    );
+    setTimeout(() => (checked ? root.querySelector('.actions .btn.primary') : field).focus(), 0);
+  }
+
+  render();
+  return root;
+}
+
 /* ---------- 화면: 개념 노트 ---------- */
 function viewLearn(sid) {
   const s = subjectOf(sid);
   if (!s) return viewNotFound();
   const sections = DB.notes[sid] || [];
   return [
-    h('p', null, h('a', { href: '#/' }, '← 홈')),
+    h('p', null, h('a', { href: '#/written' }, '← 필기 연습')),
     h('h1', null, s.no + '과목 ' + s.name),
     h('p', { class: 'muted' }, '토픽별 핵심 정리'),
     s.topics.map((t) => {
@@ -189,7 +501,7 @@ function viewMock() {
     qs.length < w.questions && h('p', { class: 'notice' }, '문제 은행이 아직 작아 실제(' + w.questions + '문항)보다 적게 출제됩니다. 시간은 문항 수에 비례해 줄였습니다.'),
     h('p', { class: 'muted small' }, '제출하기 전까지 정답은 공개되지 않습니다. 시간이 끝나면 자동으로 제출됩니다.'),
     h('button', { class: 'btn primary', type: 'button', onclick: () => {
-      fill(root, quizSession({ title: '모의고사', qs, mode: 'exam', minutes, back: '#/' }));
+      fill(root, quizSession({ title: '모의고사', qs, mode: 'exam', minutes, back: '#/written' }));
     } }, '시작하기'),
   );
   return root;
@@ -444,6 +756,14 @@ function viewStats() {
           ))),
         ))
       : h('p', { class: 'muted' }, '문제를 풀면 취약한 토픽을 알려 드립니다.'),
+    h('h2', null, '타자 연습 최고 기록'),
+    (() => {
+      const rec = store.get('typing', {});
+      const rows = DB.typing.filter((t) => rec[t.id]);
+      return rows.length
+        ? h('dl', { class: 'facts' }, rows.map((t) => h('div', null, h('dt', null, t.name), h('dd', null, rec[t.id].best + '타 · ' + rec[t.id].acc + '%'))))
+        : h('p', { class: 'muted' }, '아직 기록이 없습니다.');
+    })(),
     h('h2', null, '최근 풀이'),
     history.length
       ? h('div', { class: 'table-wrap' }, h('table', null,
@@ -456,8 +776,8 @@ function viewStats() {
         ))
       : h('p', { class: 'muted' }, '아직 기록이 없습니다.'),
     history.length > 0 && h('button', { type: 'button', class: 'btn', onclick: () => {
-      if (window.confirm('모든 학습 기록과 오답노트를 삭제할까요?')) {
-        ['history', 'qstats', 'wrong'].forEach((k) => store.remove(k));
+      if (window.confirm('모든 학습 기록(필기·타자·실기)과 오답노트를 삭제할까요?')) {
+        ['history', 'qstats', 'wrong', 'pstats', 'typing'].forEach((k) => store.remove(k));
         router();
       }
     } }, '기록 초기화'),
@@ -469,8 +789,14 @@ function viewNotFound() {
 }
 
 /* ---------- 라우터 ---------- */
-const routes = { '': viewHome, learn: viewLearn, quiz: viewQuiz, mock: viewMock, wrong: viewWrong, stats: viewStats };
-const navKey = { '': 'home', mock: 'mock', wrong: 'wrong', stats: 'stats' };
+const routes = {
+  '': viewHome, written: viewWritten, learn: viewLearn, quiz: viewQuiz, mock: viewMock, wrong: viewWrong,
+  typing: viewTyping, practical: viewPractical, stats: viewStats,
+};
+const navKey = {
+  '': 'home', written: 'written', learn: 'written', quiz: 'written', mock: 'written', wrong: 'written',
+  typing: 'typing', practical: 'practical', stats: 'stats',
+};
 
 function router() {
   if (cleanup) { cleanup(); cleanup = null; }

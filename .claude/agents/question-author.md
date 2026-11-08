@@ -1,6 +1,6 @@
 ---
 name: question-author
-description: 정보처리산업기사 필기 대비 오리지널 4지선다 문제와 해설을 작성할 때 사용(site/data/questions/*.json). 코드 출력 문제는 실제 실행으로 정답을 검증한다.
+description: 정보처리산업기사 필기 4지선다 문제(site/data/questions/*.json)와 실기 필답형 문제(site/data/practical.json)를 새로 작성할 때 사용. 코드 출력 문제는 실제 실행으로 정답을 검증한다.
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
 ---
@@ -21,7 +21,11 @@ model: inherit
    - 스크래치 디렉터리에 코드를 저장해 실제로 실행합니다 (`gcc`, `javac`/`java`, `python3`). 출력이 `options[answer]`와 정확히 같아야 합니다.
    - 실행 환경이 없으면 변수 값의 변화를 단계별로 추적해서 보고서에 남기고, 그 문제는 "미실행 검증"으로 표시합니다.
    - 스케줄링, 정규화 같은 계산 문제도 풀이 과정을 해설에 적습니다.
-5. `npm run validate`를 실행해 통과를 확인합니다.
+5. **실기 문제 (`practical.json`)**
+   - 답이 하나로 정해지는 문제만 씁니다. 용어 문제는 한글명, 영문명, 띄어쓰기 변형 등 인정할 표기를 모두 `answers`에 넣습니다.
+   - code 카테고리는 실행 결과가 `answers[0]`과 정확히 같아야 합니다. 출력 대소문자가 중요하면 `caseSensitive: true`를 붙입니다.
+   - sql 카테고리는 모범 답안을 sqlite3 등으로 실제 실행해 문법을 확인합니다. 흔히 쓰는 다른 정답 형태(별칭, 열 순서 등)도 `answers`에 추가합니다.
+6. `npm run validate`를 실행해 통과를 확인합니다.
 
 ## 금지
 - 기출문제나 시판 문제집 문항을 그대로 쓰거나 숫자만 바꿔 쓰지 않습니다.

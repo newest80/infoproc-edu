@@ -70,6 +70,44 @@ for (const [sid, topics] of subjects) {
   }
 }
 
+// 타자 연습
+const typing = load('typing.json');
+const typingIds = new Set();
+typing?.sets.forEach((set, i) => {
+  const at = `typing.json sets[${i}] ${set.id ?? ''}`;
+  if (!/^[a-z0-9-]+$/.test(set.id || '')) errors.push(`${at}: id는 영문 소문자·숫자·하이픈`);
+  if (typingIds.has(set.id)) errors.push(`${at}: 중복 id`);
+  typingIds.add(set.id);
+  if (!set.name || !set.description) errors.push(`${at}: name/description 없음`);
+  if (!Array.isArray(set.items) || !set.items.length) errors.push(`${at}: items가 비었음`);
+  set.items?.forEach((t, j) => {
+    if (typeof t !== 'string' || !t.trim()) errors.push(`${at} items[${j}]: 빈 문장`);
+    else if (t !== t.trim() || /\s{2,}|[\t\n]/.test(t)) errors.push(`${at} items[${j}]: 앞뒤 공백·연속 공백·탭·줄바꿈 금지 (따라 치기 어려움)`);
+    else if (t.length > 90) warnings.push(`${at} items[${j}]: 90자 초과 — 모바일에서 길어짐`);
+  });
+});
+
+// 실기 연습
+const practical = load('practical.json');
+if (practical) {
+  const cats = new Set(practical.categories.map((c) => c.id));
+  const pIds = new Set();
+  practical.questions.forEach((q, i) => {
+    const at = `practical.json[${i}] ${q.id ?? ''}`;
+    if (!/^p-[a-z0-9]+-\d{3}$/.test(q.id || '')) errors.push(`${at}: id 형식 오류 (예: p-sql-001)`);
+    else if (!q.id.startsWith('p-' + q.category + '-')) errors.push(`${at}: id 접두사가 category와 다름`);
+    if (pIds.has(q.id)) errors.push(`${at}: 중복 id`);
+    pIds.add(q.id);
+    if (!cats.has(q.category)) errors.push(`${at}: 알 수 없는 category "${q.category}"`);
+    if (typeof q.question !== 'string' || q.question.trim().length < 5) errors.push(`${at}: question 오류`);
+    if (!Array.isArray(q.answers) || !q.answers.length || q.answers.some((a) => typeof a !== 'string' || !a.trim())) errors.push(`${at}: answers는 비어 있지 않은 문자열 배열`);
+    if (typeof q.explanation !== 'string' || q.explanation.trim().length < 15) errors.push(`${at}: explanation이 비었거나 너무 짧음`);
+    if (q.category === 'code' && !q.code) errors.push(`${at}: code 카테고리는 code 필드 필요`);
+  });
+  for (const c of cats) if (!practical.questions.some((q) => q.category === c)) warnings.push(`practical.json: "${c}" 카테고리에 문제 없음`);
+  coverage.practical = Object.fromEntries([...cats].map((c) => [c, { q: practical.questions.filter((q) => q.category === c).length, n: '-' }]));
+}
+
 // 고아 파일
 for (const dir of ['questions', 'notes']) {
   for (const f of readdirSync(join(DATA, dir))) {
@@ -94,6 +132,6 @@ function report() {
     console.error(`\n검증 실패: 오류 ${errors.length}개`);
     process.exit(1);
   }
-  console.log(`검증 통과: 문제 ${seen.size}개, 경고 ${warnings.length}개`);
+  console.log(`검증 통과: 필기 ${seen.size}문제, 실기 ${practical?.questions.length ?? 0}문제, 타자 ${typing?.sets.length ?? 0}세트, 경고 ${warnings.length}개`);
   process.exit(0);
 }

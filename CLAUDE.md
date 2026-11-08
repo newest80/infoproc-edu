@@ -1,6 +1,11 @@
 # 정처산기 스터디 — 정보처리산업기사 교육용 웹사이트
 
-정보처리산업기사 수험생을 위한 학습 사이트입니다. 개념 노트, 과목별 문제풀이, 시간제한 모의고사, 오답노트, 학습 기록을 제공합니다.
+정보처리산업기사 수험생을 위한 학습 사이트입니다. 홈은 세 영역으로 나뉩니다.
+- **필기 연습**: 개념 노트, 과목별 4지선다 문제, 시간제한 모의고사, 오답노트
+- **타자 연습**: 핵심 문장·SQL을 따라 치며 암기 (두벌식 기준 타수·정확도)
+- **실기 연습**: 필답형처럼 답을 직접 입력 (코드 결과·SQL 작성·용어 쓰기), 자동 채점 + 직접 정답 처리
+
+학습 기록 화면도 있습니다.
 빌드 단계가 없는 순수 HTML/CSS/JS(ES2020) 정적 사이트이며, 콘텐츠는 모두 `site/data/` 아래 JSON 파일에 있습니다.
 
 ## 명령어
@@ -14,12 +19,16 @@ npm test           # validate + Playwright 스모크 테스트 (데스크톱 + �
 ## 디렉터리 구조
 
 ```
-site/index.html            단일 페이지, 해시 라우팅 (#/, #/learn/s1, #/quiz/s1, #/mock, #/wrong, #/stats)
+site/index.html            단일 페이지, 해시 라우팅
+                           #/ 홈 허브 · #/written 필기 · #/learn/s1 · #/quiz/s1[/토픽] · #/mock · #/wrong
+                           #/typing[/세트] 타자 · #/practical[/카테고리|all] 실기 · #/stats 기록
 site/js/app.js             라우터, 뷰, 퀴즈 엔진, localStorage 저장소
 site/css/style.css         디자인 토큰(:root) + 다크 모드
 site/data/subjects.json    시험 정보 + 과목/토픽 목록 (단일 기준 원천)
 site/data/questions/sN.json  과목별 문제 은행
 site/data/notes/sN.json      과목별 개념 노트
+site/data/typing.json        타자 연습 세트
+site/data/practical.json     실기(필답형) 문제
 scripts/validate.mjs       콘텐츠 검사기
 scripts/serve.mjs          의존성 없는 정적 서버
 tests/smoke.cjs            Playwright 스모크 테스트
@@ -51,6 +60,24 @@ docs/exam-spec.md          출제기준 조사 결과 (exam-researcher 담당)
 ```
 노트 (`notes/sN.json` → `{ "subject": "s1", "sections": [{ "topic", "title", "points": [] }] }`)
 
+타자 (`typing.json` → `{ "sets": [{ "id", "name", "description", "items": ["문장", ...] }] }`)
+- 문장은 한 줄로 쓰고 90자 이내로 합니다. 앞뒤 공백, 연속 공백, 탭, 줄바꿈은 넣지 않습니다. 내용은 노트·문제와 일치해야 합니다.
+
+실기 (`practical.json` → `{ "categories": [{ "id", "name", "description" }], "questions": [...] }`)
+```json
+{
+  "id": "p-sql-001",            // p-{카테고리}-{3자리 번호}
+  "category": "sql",            // code | sql | term (categories에 정의된 값)
+  "question": "...",
+  "code": "...",                // code 카테고리는 필수
+  "answers": ["모범 답안", "인정 답안", ...],  // 첫 번째가 화면에 표시되는 모범 답안
+  "caseSensitive": true,        // 선택: 출력값처럼 대소문자를 구분해야 할 때
+  "explanation": "..."
+}
+```
+- 채점할 때는 공백, 따옴표 종류, 끝의 세미콜론, (대소문자)를 무시하고, 괄호 안팎의 표기를 각각 비교합니다(예: "영속성(Durability)"). 동의어와 다른 표기는 `answers`에 모두 넣습니다.
+- SQL은 표현이 여러 가지일 수 있으므로, 자주 쓰는 다른 형태도 `answers`에 추가합니다. 사용자가 "정답 처리" 버튼으로 직접 채점할 수도 있습니다.
+
 ## 규칙
 
 1. **콘텐츠는 직접 작성한 것만 사용합니다.** 기출문제·시판 교재 문장을 그대로 옮기지 않습니다. 출제 경향을 반영하되 문항은 새로 씁니다.
@@ -67,8 +94,8 @@ docs/exam-spec.md          출제기준 조사 결과 (exam-researcher 담당)
 | 에이전트 | 역할 | 쓰기 범위 |
 |---|---|---|
 | `exam-researcher` | Q-Net 출제기준·시험 정보 조사 및 검증 | `docs/exam-spec.md`, `subjects.json`의 exam/topics |
-| `content-writer` | 과목별 개념 노트 작성 | `site/data/notes/` |
-| `question-author` | 오리지널 문제·해설 작성, 코드 출력 실행 검증 | `site/data/questions/` |
+| `content-writer` | 과목별 개념 노트, 타자 연습 문장 작성 | `site/data/notes/`, `site/data/typing.json` |
+| `question-author` | 필기·실기 오리지널 문제와 해설 작성, 코드·SQL 실행 검증 | `site/data/questions/`, `site/data/practical.json` |
 | `frontend-dev` | UI·기능 구현 (퀴즈 엔진, 화면, 접근성) | `site/js`, `site/css`, `site/index.html`, `tests/` |
 | `qa-reviewer` | 콘텐츠 정확성 + 코드 리뷰, 테스트 실행 (읽기 전용) | 없음 (보고만) |
 

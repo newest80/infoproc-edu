@@ -143,3 +143,31 @@ th, td { padding: 8px; border-bottom: 1px solid var(--border); text-align: left;
 .notes ul { margin: 0; padding-left: 1.2em; }
 .notes li { margin: 4px 0; }
 .foot { max-width: 820px; margin: 0 auto; padding: 16px; color: var(--muted); font-size: .8rem; border-top: 1px solid var(--border); }
+
+/* 홈 허브 */
+.hub { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin-top: 16px; }
+.hub-card { display: flex; flex-direction: column; gap: 6px; margin: 0; color: var(--text); text-decoration: none; transition: border-color .15s, transform .15s; }
+.hub-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.hub-card h2 { margin: 4px 0 0; font-size: 1.3rem; }
+.hub-card p { margin: 0; }
+.hub-go { margin-top: auto; padding-top: 8px; color: var(--accent); font-weight: 700; }
+.tag { align-self: flex-start; }
+
+/* 입력 필드 */
+.field {
+  width: 100%; font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--border); border-radius: 8px; padding: 12px; min-height: 48px; margin-top: 12px;
+}
+.field:focus-visible { outline: 3px solid var(--accent); outline-offset: 1px; }
+.field:disabled { opacity: .8; }
+.code-field { font: 15px/1.5 ui-monospace, "D2Coding", Consolas, monospace; resize: vertical; }
+label.qtext { display: block; }
+
+/* 타자 연습 */
+.typing-target { font-size: 1.2rem; line-height: 1.9; margin: 0; white-space: pre-wrap; word-break: break-all; }
+.typing-target .ch { border-radius: 2px; }
+.typing-target .ok { color: var(--ok); }
+.typing-target .bad { color: var(--bad); background: var(--bad-soft); text-decoration: underline; }
+.typing-target .pending { color: var(--accent); }
+.typing-target .cur { box-shadow: inset 0 -3px 0 var(--accent); }
+.typing-stats { margin: 10px 0 0; font-variant-numeric: tabular-nums; font-weight: 700; }
