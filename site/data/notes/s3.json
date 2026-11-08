@@ -1,0 +1,58 @@
+{
+  "subject": "s3",
+  "sections": [
+    {
+      "topic": "model",
+      "title": "키와 무결성",
+      "points": [
+        "슈퍼키: 유일성만 만족. 후보키: 유일성과 최소성을 모두 만족.",
+        "기본키: 후보키 중에서 선택한 대표 키. 대체키: 기본키로 선택되지 않은 나머지 후보키.",
+        "외래키: 다른 릴레이션의 기본키를 참조하는 속성.",
+        "개체 무결성: 기본키는 NULL이나 중복 값을 가질 수 없음.",
+        "참조 무결성: 외래키 값은 참조하는 릴레이션의 기본키 값이거나 NULL이어야 함."
+      ]
+    },
+    {
+      "topic": "model",
+      "title": "관계대수",
+      "points": [
+        "Select(σ): 조건을 만족하는 튜플(행)을 고름. 수평적 부분집합.",
+        "Project(π): 원하는 속성(열)만 고름. 수직적 부분집합.",
+        "Join(⋈): 공통 속성으로 두 릴레이션을 결합함. Division(÷): 나누는 릴레이션의 모든 값과 관련된 튜플을 구함."
+      ]
+    },
+    {
+      "topic": "normalization",
+      "title": "정규화 단계",
+      "points": [
+        "1NF: 모든 속성 값이 원자값.",
+        "2NF: 부분 함수적 종속 제거.",
+        "3NF: 이행적 함수적 종속 제거.",
+        "BCNF: 모든 결정자가 후보키.",
+        "4NF: 다치 종속 제거. 5NF: 조인 종속 제거.",
+        "기억법: 도부이결다조 (도메인 원자값 → 부분 → 이행 → 결정자 → 다치 → 조인)."
+      ]
+    },
+    {
+      "topic": "sql",
+      "title": "SQL 분류와 SELECT",
+      "points": [
+        "DDL(정의): CREATE, ALTER, DROP. DML(조작): SELECT, INSERT, UPDATE, DELETE.",
+        "DCL(제어): GRANT, REVOKE. COMMIT·ROLLBACK은 교재에 따라 DCL로도, TCL로 따로 분류하기도 함.",
+        "SELECT의 논리적 처리 순서: FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY.",
+        "WHERE는 그룹화 이전의 행 조건, HAVING은 그룹 조건(집계 함수 사용 가능)."
+      ]
+    },
+    {
+      "topic": "transaction",
+      "title": "트랜잭션",
+      "points": [
+        "원자성(Atomicity): 모두 반영되거나 전혀 반영되지 않음(All or Nothing).",
+        "일관성(Consistency): 실행 전후로 데이터베이스가 일관된 상태를 유지함.",
+        "독립성(Isolation): 동시에 실행되는 트랜잭션끼리 서로 간섭하지 않음.",
+        "영속성(Durability): 완료(COMMIT)된 결과는 영구히 반영됨.",
+        "상태: 활동 → 부분 완료 → 완료, 또는 활동 → 실패 → 철회."
+      ]
+    }
+  ]
+}

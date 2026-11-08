@@ -1,0 +1,56 @@
+{
+  "exam": {
+    "name": "정보처리산업기사",
+    "written": {
+      "questions": 60,
+      "perSubject": 20,
+      "minutes": 90,
+      "format": "객관식 4지 택일형",
+      "subjectCutoff": 40,
+      "passAverage": 60
+    },
+    "practical": {
+      "subject": "정보처리 실무",
+      "format": "필답형",
+      "passScore": 60
+    },
+    "source": "Q-Net 출제기준 — 최신 기준과 대조 필요 (docs/exam-spec.md)",
+    "verified": false
+  },
+  "subjects": [
+    {
+      "id": "s1",
+      "no": 1,
+      "name": "정보시스템 기반 기술",
+      "topics": [
+        { "id": "sdlc", "name": "소프트웨어 개발 방법론" },
+        { "id": "network", "name": "네트워크 기초" },
+        { "id": "security", "name": "정보 보안" },
+        { "id": "system", "name": "시스템 설계·구축" }
+      ]
+    },
+    {
+      "id": "s2",
+      "no": 2,
+      "name": "프로그래밍 언어 활용",
+      "topics": [
+        { "id": "c", "name": "C 언어" },
+        { "id": "java", "name": "Java" },
+        { "id": "python", "name": "Python" },
+        { "id": "oop", "name": "객체지향" },
+        { "id": "os", "name": "운영체제" }
+      ]
+    },
+    {
+      "id": "s3",
+      "no": 3,
+      "name": "데이터베이스 활용",
+      "topics": [
+        { "id": "model", "name": "관계 데이터 모델" },
+        { "id": "normalization", "name": "정규화" },
+        { "id": "sql", "name": "SQL" },
+        { "id": "transaction", "name": "트랜잭션" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "subject": "s3",
+  "questions": [
+    {
+      "id": "s3-model-001",
+      "topic": "model",
+      "difficulty": 1,
+      "question": "후보키(Candidate Key) 중에서 기본키(Primary Key)로 선택되지 않은 나머지 키를 무엇이라 하는가?",
+      "options": ["슈퍼키(Super Key)", "외래키(Foreign Key)", "대체키(Alternate Key)", "복합키(Composite Key)"],
+      "answer": 2,
+      "explanation": "대체키는 기본키로 선택되지 못한 후보키입니다. 슈퍼키는 유일성만 만족하는 키, 외래키는 다른 릴레이션의 기본키를 참조하는 키입니다."
+    },
+    {
+      "id": "s3-model-002",
+      "topic": "model",
+      "difficulty": 1,
+      "question": "'기본키를 구성하는 속성은 NULL 값이나 중복 값을 가질 수 없다'는 제약 조건은?",
+      "options": ["참조 무결성", "개체 무결성", "도메인 무결성", "키 무결성"],
+      "answer": 1,
+      "explanation": "개체 무결성(Entity Integrity)에 대한 설명입니다. 참조 무결성은 외래키 값이 참조하는 릴레이션의 기본키 값이거나 NULL이어야 한다는 규칙이고, 도메인 무결성은 속성 값이 정의된 도메인에 속해야 한다는 규칙입니다."
+    },
+    {
+      "id": "s3-model-003",
+      "topic": "model",
+      "difficulty": 2,
+      "question": "관계대수에서 릴레이션의 튜플 중 주어진 조건을 만족하는 튜플만 골라 수평적 부분집합을 만드는 연산과 그 기호는?",
+      "options": ["Project, π", "Select, σ", "Join, ⋈", "Division, ÷"],
+      "answer": 1,
+      "explanation": "Select(σ)는 조건에 맞는 행(튜플)을 고르는 수평적 연산이고, Project(π)는 원하는 열(속성)만 고르는 수직적 연산입니다."
+    },
+    {
+      "id": "s3-normalization-001",
+      "topic": "normalization",
+      "difficulty": 2,
+      "question": "제1정규형을 만족하는 릴레이션에서 부분 함수적 종속을 제거하면 어떤 정규형이 되는가?",
+      "options": ["제2정규형(2NF)", "제3정규형(3NF)", "BCNF", "제4정규형(4NF)"],
+      "answer": 0,
+      "explanation": "1NF → 2NF는 부분 함수적 종속 제거, 2NF → 3NF는 이행적 함수적 종속 제거, 3NF → BCNF는 결정자이면서 후보키가 아닌 것 제거, BCNF → 4NF는 다치 종속 제거입니다."
+    },
+    {
+      "id": "s3-normalization-002",
+      "topic": "normalization",
+      "difficulty": 2,
+      "question": "릴레이션 R(학번, 학과, 학과장)에서 학번 → 학과, 학과 → 학과장 종속이 성립한다. 이 릴레이션이 제3정규형을 만족하지 못하는 이유는?",
+      "options": [
+        "속성 값이 원자값이 아니기 때문",
+        "기본키에 대한 부분 함수적 종속이 있기 때문",
+        "학번 → 학과장의 이행적 함수적 종속이 있기 때문",
+        "다치 종속이 존재하기 때문"
+      ],
+      "answer": 2,
+      "explanation": "학번 → 학과 → 학과장으로 이어져 학과장이 기본키(학번)에 이행적으로 종속됩니다. 기본키가 단일 속성(학번)이므로 부분 함수적 종속은 생길 수 없습니다. (학과, 학과장)을 별도 릴레이션으로 분리하면 3NF가 됩니다."
+    },
+    {
+      "id": "s3-sql-001",
+      "topic": "sql",
+      "difficulty": 1,
+      "question": "다음 중 DDL(데이터 정의어)에 해당하지 않는 것은?",
+      "options": ["CREATE", "ALTER", "DROP", "UPDATE"],
+      "answer": 3,
+      "explanation": "UPDATE는 데이터 값을 변경하는 DML(데이터 조작어)입니다. CREATE, ALTER, DROP은 테이블 같은 객체의 구조를 정의하는 DDL입니다."
+    },
+    {
+      "id": "s3-sql-002",
+      "topic": "sql",
+      "difficulty": 1,
+      "question": "SELECT 문에서 GROUP BY로 묶은 그룹에 대한 조건을 지정할 때 사용하는 절은?",
+      "options": ["WHERE", "HAVING", "ORDER BY", "DISTINCT"],
+      "answer": 1,
+      "explanation": "HAVING은 그룹화한 결과에 조건을 적용하며 집계 함수를 사용할 수 있습니다. WHERE는 그룹화 이전의 개별 행에 조건을 적용합니다."
+    },
+    {
+      "id": "s3-sql-003",
+      "topic": "sql",
+      "difficulty": 2,
+      "question": "[학생] 테이블이 다음과 같을 때, 아래 SQL의 실행 결과는?\n\n이름 | 학과 | 점수\n김민 | 컴공 | 85\n이준 | 전자 | 72\n박서 | 컴공 | 90\n최윤 | 경영 | 80\n정하 | 전자 | 65",
+      "code": "SELECT COUNT(*) FROM 학생 WHERE 점수 >= 80;",
+      "options": ["2", "3", "4", "5"],
+      "answer": 1,
+      "explanation": "점수가 80 이상인 행은 김민(85), 박서(90), 최윤(80)으로 3개입니다. >= 는 80을 포함합니다."
+    },
+    {
+      "id": "s3-sql-004",
+      "topic": "sql",
+      "difficulty": 1,
+      "question": "데이터베이스 사용자에게 테이블에 대한 권한을 부여할 때 사용하는 SQL 명령어는?",
+      "options": ["REVOKE", "COMMIT", "GRANT", "INSERT"],
+      "answer": 2,
+      "explanation": "GRANT는 권한 부여, REVOKE는 권한 회수에 사용합니다. 예: GRANT SELECT ON 학생 TO user1;"
+    },
+    {
+      "id": "s3-transaction-001",
+      "topic": "transaction",
+      "difficulty": 1,
+      "question": "'트랜잭션의 연산은 데이터베이스에 모두 반영되거나, 전혀 반영되지 않아야 한다'는 트랜잭션의 특성은?",
+      "options": ["원자성(Atomicity)", "일관성(Consistency)", "독립성(Isolation)", "영속성(Durability)"],
+      "answer": 0,
+      "explanation": "원자성(All or Nothing)에 대한 설명입니다. 일관성은 실행 전후 데이터베이스가 일관된 상태를 유지하는 것, 독립성은 동시에 실행되는 트랜잭션이 서로 간섭하지 않는 것, 영속성은 완료된 결과가 영구히 반영되는 것입니다."
+    }
+  ]
+}
